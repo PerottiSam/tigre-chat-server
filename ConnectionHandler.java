@@ -176,7 +176,7 @@ public class ConnectionHandler extends Thread{
                         }while (count == 1024);
                         socketDest = null;
                     }else{
-                        String path = "DATABASE\\" + destinatario + "\\" ;
+                        String path = "DATABASE/" + destinatario + "/" ;
                         OutputStream out = new FileOutputStream(path + nomeFile);
                         byte[] bytes = new byte[1024];
                         int count;
@@ -236,7 +236,7 @@ public class ConnectionHandler extends Thread{
 
     public void scriviSuFileAllegatoNonInviato(String destinatario, String nomeFile){
         try{
-            FileWriter fw = new FileWriter("DATABASE\\" + destinatario + "\\Allegati.csv", true);
+            FileWriter fw = new FileWriter("DATABASE/" + destinatario + "/Allegati.csv", true);
             PrintWriter scrivi = new PrintWriter(fw);
             scrivi.println("FILE;" + io + ";" + destinatario + ";" + nomeFile);
             fw.close();
@@ -247,7 +247,7 @@ public class ConnectionHandler extends Thread{
 
     public void caricaVectorDiContatti(){
         try{
-            FileReader fr = new FileReader("DATABASE\\" + io + "\\Contatti.txt");
+            FileReader fr = new FileReader("DATABASE/" + io + "/Contatti.txt");
             BufferedReader leggi = new BufferedReader(fr);
             String s;
 
@@ -263,7 +263,7 @@ public class ConnectionHandler extends Thread{
 
     public void inviaMessaggiRimastiSulServer(){
         try{
-            FileReader fr = new FileReader("DATABASE\\" + io + "\\messaggi.csv");
+            FileReader fr = new FileReader("DATABASE/" + io + "/messaggi.csv");
             BufferedReader leggi = new BufferedReader(fr);
             String pacchettoMessaggio;
 
@@ -273,7 +273,7 @@ public class ConnectionHandler extends Thread{
                 pacchettoMessaggio = leggi.readLine();
             }
             fr.close();
-            new File("DATABASE\\" + io + "\\messaggi.csv").delete();
+            new File("DATABASE/" + io + "/messaggi.csv").delete();
         }catch (FileNotFoundException e){}
         catch (Exception e){
             e.printStackTrace();
@@ -282,7 +282,7 @@ public class ConnectionHandler extends Thread{
 
     public void inviaAllegatiRimastiSulServer(){
         try{
-            FileReader fr = new FileReader("DATABASE\\" + io + "\\Allegati.csv");
+            FileReader fr = new FileReader("DATABASE/" + io + "/Allegati.csv");
             BufferedReader leggi = new BufferedReader(fr);
             String pacchettoFile;
             StringTokenizer st;
@@ -298,7 +298,7 @@ public class ConnectionHandler extends Thread{
                 st.nextToken();
                 String nomeFile = st.nextToken();
 
-                File allegato = new File("DATABASE\\" + io + "\\" + nomeFile);
+                File allegato = new File("DATABASE/" + io + "/" + nomeFile);
                 byte[] bytes = new byte[1024];
                 InputStream fin = new FileInputStream(allegato);
                 int count;
@@ -313,7 +313,7 @@ public class ConnectionHandler extends Thread{
             }
             fr.close();
             //Adesso elimino il file degli allegati
-            new File("DATABASE\\" + io + "\\Allegati.csv").delete();
+            new File("DATABASE/" + io + "/Allegati.csv").delete();
         }catch (FileNotFoundException e){}
         catch (Exception e){
             e.printStackTrace();
@@ -322,7 +322,7 @@ public class ConnectionHandler extends Thread{
 
     public void scriviSuFileMessaggiInviatiQuandoNonEraOnlineIlDestinatario(String msg, String destinatario, String io){
         try{
-            FileWriter fw = new FileWriter("DATABASE\\" + destinatario + "\\messaggi.csv", true);
+            FileWriter fw = new FileWriter("DATABASE/" + destinatario + "/messaggi.csv", true);
             PrintWriter scrivi = new PrintWriter(fw);
 
             scrivi.println("MSSG;" + io + ";" + destinatario + ";" + msg);
@@ -334,7 +334,7 @@ public class ConnectionHandler extends Thread{
 
     public boolean checkLogin(String user, String psw){
         try{
-            FileReader fr = new FileReader("DATABASE\\Credentials.csv");
+            FileReader fr = new FileReader("DATABASE/Credentials.csv");
             BufferedReader leggi = new BufferedReader(fr);
             String s;
             StringTokenizer st;
@@ -362,13 +362,13 @@ public class ConnectionHandler extends Thread{
         }
 
         aggiungiUtente(user, psw);
-        new File("DATABASE\\" + user).mkdir();
+        new File("DATABASE/" + user).mkdir();
         return true;
     }
 
     public boolean userPresente(String user){
         try{
-            FileReader fr = new FileReader("DATABASE\\Credentials.csv");
+            FileReader fr = new FileReader("DATABASE/Credentials.csv");
             BufferedReader leggi = new BufferedReader(fr);
             String s;
             StringTokenizer st;
@@ -388,7 +388,7 @@ public class ConnectionHandler extends Thread{
 
     public void aggiungiUtente(String username, String psw){
         try{
-            FileWriter fw = new FileWriter("DATABASE\\Credentials.csv", true);
+            FileWriter fw = new FileWriter("DATABASE/Credentials.csv", true);
             PrintWriter scrivi = new PrintWriter(fw);
 
             scrivi.println(username + ";" + psw);
@@ -412,7 +412,7 @@ public class ConnectionHandler extends Thread{
 
     public void aggiungiAllaListaContatti(String userContatto){
         try{
-            FileWriter fw = new FileWriter("DATABASE\\" + io + "\\Contatti.csv", true);
+            FileWriter fw = new FileWriter("DATABASE/" + io + "/Contatti.csv", true);
             PrintWriter scrivi = new PrintWriter(fw);
             scrivi.println(userContatto + ";");
             fw.close();
