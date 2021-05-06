@@ -1,2 +1,2 @@
 # tigre-chat-server
-Questo è linux based
+Questo è linux aimed
