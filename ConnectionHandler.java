@@ -10,14 +10,12 @@ public class ConnectionHandler extends Thread{
     private DataOutputStream invia;
     private String io;
     private String interlcutore;
-    Vector<String> vectorContatti;
 
     public ConnectionHandler(Socket mioSocket, Server server){
         this.mioSocket = mioSocket;
         this.server = server;
         io = null;
         interlcutore = null;
-        vectorContatti = new Vector<>();
         try{
             leggi = new DataInputStream(mioSocket.getInputStream());
             invia = new DataOutputStream(mioSocket.getOutputStream());
@@ -32,10 +30,6 @@ public class ConnectionHandler extends Thread{
 
     public String getInterlcutore() {
         return interlcutore;
-    }
-
-    public Vector<String> getVectorContatti() {
-        return vectorContatti;
     }
 
     @Override
@@ -62,54 +56,26 @@ public class ConnectionHandler extends Thread{
                     if (login){
                         io = user;
 
-
+                        //Invio gli allegati che sono arrivati quando ero offline
                         inviaAllegatiRimastiSulServer();
                         /* **************************************** */
                         //Invio tutti i messsaggi che mi sono arrivati quando ero offline
                         inviaMessaggiRimastiSulServer();
                         /* ***************************************** */
-                        //Invio gli allegati che sono arrivati quando ero offline
 
-                        //Carico il vector dei miei contatti
-                        caricaVectorDiContatti();
-
-
-
-                        //INVIO A TUTTI COLORO CHE MI HANNO TRA I CONTATTI IL MIO STATUS ONLINE
+                        //Invio il mio status a tutti coloro che mi hanno come contatto selezionato (interlocutore)
                         listaSocket = server.getListaSocket();
-                        for (ConnectionHandler connectionHandler : listaSocket){
-                            if (connectionHandler!=null){
+                        for (int i = 0; i < listaSocket.size(); i++) {
+                            ConnectionHandler ch = listaSocket.get(i);
+                            if (ch != null){
                                 try{
-                                    Vector<String> vectorContattiConnectionHandler = connectionHandler.getVectorContatti();
-                                    if(!vectorContattiConnectionHandler.isEmpty()){
-                                        if (vectorContattiConnectionHandler.contains(getIo())){ //Se la sua lista di contatti mi contiene gli mando il mio stato
-                                            connectionHandler.send("STATUS;" + getIo() + ";true");
+                                    String suoInterlocutore = ch.getInterlcutore();
+                                    if (suoInterlocutore != null) {
+                                        if (suoInterlocutore.equals(io)){
+                                            ch.send("STATUS;" + getIo() + ";true");
                                         }
                                     }
                                 }catch (Exception exxx){}
-                            }
-                        }
-
-                        //INVIO AL MIO CLIENT GLI STATUS DEI SUOI CONTATTI
-                        boolean pacchettoStatusInviato = false;
-                        if (!vectorContatti.isEmpty()){
-                            for (int i = 0; i < vectorContatti.size(); i++) {
-                                String destinatario = vectorContatti.get(i);
-                                for (ConnectionHandler connectionHandler : listaSocket) {
-                                    if (connectionHandler!=null){
-                                        try{
-                                            if (connectionHandler.getIo().equals(destinatario)){
-                                                send("STATUS;" + destinatario + ";true");
-                                                pacchettoStatusInviato = true;
-                                                break;
-                                            }
-                                        }catch (Exception ex){}
-                                    }
-                                }
-                                //SE NON SONO PRESENTI ALL'INTERNO DELLA LISTASOCKET ALLORA SONO OFFLINE
-                                if(!pacchettoStatusInviato){
-                                    send("STATUS;" + destinatario + ";false");
-                                }
                             }
                         }
                     }
@@ -153,10 +119,6 @@ public class ConnectionHandler extends Thread{
                     boolean esiste = userPresente(userContatto);
                     send(pacchetto + ";" + esiste);
 
-                    if (esiste){
-                        vectorContatti.add(userContatto);
-                        aggiungiAllaListaContatti(userContatto);
-                    }
                 }else if (pacchetto.startsWith("FILE")){
                     st = new StringTokenizer(pacchetto, ";");
                     st.nextToken();
@@ -190,7 +152,7 @@ public class ConnectionHandler extends Thread{
                     }
 
                     if(!inviato){
-                        String path = "DATABASE/" + destinatario + "" ;
+                        String path = "DATABASE/" + destinatario + "/" ;
                         OutputStream out = new FileOutputStream(path + nomeFile);
                         byte[] bytes = new byte[1024];
                         int count;
@@ -201,20 +163,51 @@ public class ConnectionHandler extends Thread{
                         out.close();
                         scriviSuFileAllegatoNonInviato(destinatario, nomeFile);
                     }
+                }else if(pacchetto.startsWith("INTRL")){
+                    System.out.println("Pacchetto interlocutore arrivato: " + pacchetto);
+                    st = new StringTokenizer(pacchetto, ";");
+                    st.nextToken();
+                    interlcutore = st.nextToken();
+
+                    boolean pacchettoInviato = false;
+                    listaSocket = server.getListaSocket();
+                    for (int i = 0; i < listaSocket.size(); i++) {
+                        ConnectionHandler cH = listaSocket.get(i);
+                        if (cH != null){
+                            String suoIo = cH.getIo();
+                            if (suoIo != null && suoIo.equals(interlcutore)){
+                                send("STATUS;" + interlcutore + ";true");
+                                System.out.println("Ho inviato " + interlcutore +" true");
+                                pacchettoInviato = true;
+                                break;
+                            }
+                        }
+                    }
+                    if(!pacchettoInviato){
+                        send("STATUS;" + interlcutore + ";false");
+                        System.out.println("Ho inviato " + interlcutore +" false");
+                    }
+
                 }
             }
 
+
+
             /* ***************************  PROCEDIMENTO CHIUSURA *************************  */
             if(io!=null){
+                //Invio il mio status a tutti coloro che mi hanno come contatto selezionato (interlocutore)
                 listaSocket = server.getListaSocket();
-                for (ConnectionHandler connectionHandler : listaSocket){
-                    if (connectionHandler!=null){
-                        Vector<String> vectorContattiConnectionHandler = connectionHandler.getVectorContatti();
-                        if(!vectorContattiConnectionHandler.isEmpty()){
-                            if (vectorContattiConnectionHandler.contains(getIo())){ //Se la sua lista di contatti mi contiene gli mando il mio stato
-                                connectionHandler.send("STATUS;" + getIo() + ";false");
+                for (int i = 0; i < listaSocket.size(); i++) {
+                    ConnectionHandler ch = listaSocket.get(i);
+                    if (ch != null){
+                        try{
+                            String suoInterlocutore = ch.getInterlcutore();
+                            if (suoInterlocutore != null) {
+                                if (suoInterlocutore.equals(io)){
+                                    ch.send("STATUS;" + getIo() + ";false");
+                                }
                             }
-                        }
+                        }catch (Exception exxx){}
                     }
                 }
                 send("CHIUDI-THREAD");
@@ -253,22 +246,6 @@ public class ConnectionHandler extends Thread{
             PrintWriter scrivi = new PrintWriter(fw);
             scrivi.println("FILE;" + io + ";" + destinatario + ";" + nomeFile);
             fw.close();
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-    }
-
-    public void caricaVectorDiContatti(){
-        try{
-            FileReader fr = new FileReader("DATABASE/" + io + "/Contatti.txt");
-            BufferedReader leggi = new BufferedReader(fr);
-            String s;
-
-            s = leggi.readLine();
-            while (s!=null){
-                vectorContatti.add(s);
-                s = leggi.readLine();
-            }
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -424,16 +401,5 @@ public class ConnectionHandler extends Thread{
             }
         }
         return false;
-    }
-
-    public void aggiungiAllaListaContatti(String userContatto){
-        try{
-            FileWriter fw = new FileWriter("DATABASE/" + io + "/Contatti.csv", true);
-            PrintWriter scrivi = new PrintWriter(fw);
-            scrivi.println(userContatto + ";");
-            fw.close();
-        }catch (Exception e){
-            e.printStackTrace();
-        }
     }
 }
