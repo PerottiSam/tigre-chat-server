@@ -136,7 +136,6 @@ public class ConnectionHandler extends Thread{
                                     connectionHandler.send(pacchetto);
                                     socketDest = connectionHandler.invia;
 
-
                                     byte[] bytes = new byte[1024];
                                     int count;
                                     do{
