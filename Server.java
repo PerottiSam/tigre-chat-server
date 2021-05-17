@@ -6,10 +6,12 @@ public class Server {
     private final int port;
     Vector<ConnectionHandler> listaSocket;
     ServerSocket questoServer;
+    private final Boolean lock;
 
     public Server(int port) {
         this.port = port;
         listaSocket = new Vector<>(20, 5);
+        lock = true;
     }
 
     public void inizializzaServer(){
@@ -25,20 +27,22 @@ public class Server {
                 System.out.println("Connesso con un cliet");
 
                 /*******AGGIUNGO QUESTO CONNECTIONHANDLER ALLA LISTA*************/
-                boolean aggiunto = false;
-                for (int i = 0; i < listaSocket.size(); i++) {
-                    if (listaSocket.get(i) == null){
-                        listaSocket.set(i, connectionHandler);
-                        //Rimpiazzato
-                        aggiunto = true;
-                        break;
+                synchronized (lock){
+                    boolean aggiunto = false;
+                    for (int i = 0; i < listaSocket.size(); i++) {
+                        if (listaSocket.get(i) == null){
+                            listaSocket.set(i, connectionHandler);
+                            //Rimpiazzato
+                            aggiunto = true;
+                            break;
+                        }
                     }
-                }
 
-                //Nel caso non l'abbia rimpiazzato
-                if(!aggiunto){
-                    listaSocket.add(connectionHandler);
-                    //Aggiunto
+                    //Nel caso non l'abbia rimpiazzato
+                    if(!aggiunto){
+                        listaSocket.add(connectionHandler);
+                        //Aggiunto
+                    }
                 }
                 /***************************************************************/
             }
@@ -47,7 +51,16 @@ public class Server {
         }
     }
 
-    public Vector<ConnectionHandler> getListaSocket() {
+    public synchronized Vector<ConnectionHandler> getListaSocket() {
         return listaSocket;
+    }
+
+
+    public static void main(String[] args) {
+        new Server(6789).inizializzaServer();
+    }
+
+    public synchronized Boolean getLock(){
+        return lock;
     }
 }
