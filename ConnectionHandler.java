@@ -10,12 +10,14 @@ public class ConnectionHandler extends Thread{
     private DataOutputStream invia;
     private String io;
     private String interlcutore;
+    //private final Boolean lock; //Lock per sincronizzare i thread quando eseguono operazioni sul buffer condiviso (non e' super necessario ma lo uso per sicurezza)
 
     public ConnectionHandler(Socket mioSocket, Server server){
         this.mioSocket = mioSocket;
         this.server = server;
         io = null;
         interlcutore = null;
+        //this.lock = lock;
         try{
             leggi = new DataInputStream(mioSocket.getInputStream());
             invia = new DataOutputStream(mioSocket.getOutputStream());
@@ -64,6 +66,7 @@ public class ConnectionHandler extends Thread{
                         /* ***************************************** */
 
                         //Invio il mio status a tutti coloro che mi hanno come contatto selezionato (interlocutore)
+
                         listaSocket = server.getListaSocket();
                         for (int i = 0; i < listaSocket.size(); i++) {
                             ConnectionHandler ch = listaSocket.get(i);
@@ -78,6 +81,7 @@ public class ConnectionHandler extends Thread{
                                 }catch (Exception exxx){}
                             }
                         }
+
                     }
                 }else if (pacchetto.startsWith("SIGN")){
                     st = new StringTokenizer(pacchetto, ";");
@@ -94,6 +98,7 @@ public class ConnectionHandler extends Thread{
                     String msg = st.nextToken();    //Messaggio || nomeFile
                     boolean inviato = false;
 
+
                     listaSocket = server.getListaSocket();
                     for (ConnectionHandler connectionHandler : listaSocket) {
                         if (connectionHandler!=null){
@@ -106,6 +111,7 @@ public class ConnectionHandler extends Thread{
                             }catch (Exception e){}
                         }
                     }
+
                     //Se non e' ancora stato inviato
                     if (!inviato){
                         scriviSuFileMessaggiInviatiQuandoNonEraOnlineIlDestinatario(pacchetto, destinatario);
@@ -125,28 +131,34 @@ public class ConnectionHandler extends Thread{
                     st.nextToken();
                     String destinatario = st.nextToken();
                     String nomeFile = st.nextToken();
+                    int length = (int) Long.parseLong(st.nextToken());
 
                     boolean inviato = false;
-                    listaSocket = server.getListaSocket();
-                    DataOutputStream socketDest = null;
-                    for (ConnectionHandler connectionHandler : listaSocket) {
-                        if (connectionHandler!=null){
-                            try{
-                                if (connectionHandler.getIo().equals(destinatario)){
-                                    connectionHandler.send(pacchetto);
-                                    socketDest = connectionHandler.invia;
+                    synchronized (server.getLock()){
+                        listaSocket = server.getListaSocket();
+                        DataOutputStream socketDest;
+                        for (ConnectionHandler connectionHandler : listaSocket) {
+                            if (connectionHandler!=null){
+                                try{
+                                    if (connectionHandler.getIo().equals(destinatario)){
 
-                                    byte[] bytes = new byte[1024];
-                                    int count;
-                                    do{
-                                        count = leggi.read(bytes);
-                                        socketDest.write(bytes, 0, count);
-                                    }while (count == 1024);
-                                    socketDest = null;
-                                    inviato = true;
-                                    break;
-                                }
-                            }catch (Exception ex){}
+                                        connectionHandler.send(pacchetto);
+                                        socketDest = connectionHandler.invia;
+
+                                        byte[] bytes = new byte[1024];
+                                        int count;
+                                        int qtArrivata = 0;
+                                        do{
+                                            count = leggi.read(bytes);
+                                            socketDest.write(bytes, 0, count);
+                                            qtArrivata += count;
+                                        }while (qtArrivata < length);
+                                        socketDest = null;
+                                        inviato = true;
+                                        break;
+                                    }
+                                }catch (Exception ex){}
+                            }
                         }
                     }
 
@@ -155,10 +167,12 @@ public class ConnectionHandler extends Thread{
                         OutputStream out = new FileOutputStream(path + nomeFile);
                         byte[] bytes = new byte[1024];
                         int count;
+                        int qtArrivata = 0;
                         do{
                             count = leggi.read(bytes);
                             out.write(bytes, 0, count);
-                        }while (count == 1024);
+                            qtArrivata += count;
+                        }while (qtArrivata < length);
                         out.close();
                         scriviSuFileAllegatoNonInviato(destinatario, nomeFile);
                     }
@@ -169,19 +183,22 @@ public class ConnectionHandler extends Thread{
                     interlcutore = st.nextToken();
 
                     boolean pacchettoInviato = false;
+
                     listaSocket = server.getListaSocket();
                     for (int i = 0; i < listaSocket.size(); i++) {
                         ConnectionHandler cH = listaSocket.get(i);
-                        if (cH != null){
+                        if (cH != null) {
                             String suoIo = cH.getIo();
-                            if (suoIo != null && suoIo.equals(interlcutore)){
+                            if (suoIo != null && suoIo.equals(interlcutore)) {
                                 send("STATUS;" + interlcutore + ";true");
-                                System.out.println("Ho inviato " + interlcutore +" true");
+                                System.out.println("Ho inviato " + interlcutore + " true");
                                 pacchettoInviato = true;
                                 break;
                             }
                         }
                     }
+
+
                     if(!pacchettoInviato){
                         send("STATUS;" + interlcutore + ";false");
                         System.out.println("Ho inviato " + interlcutore +" false");
@@ -210,17 +227,21 @@ public class ConnectionHandler extends Thread{
                     }
                 }
                 send("CHIUDI-THREAD");
+
             }
 
-            listaSocket = server.getListaSocket();
-            for (int i = 0; i < listaSocket.size(); i++) {
-                ConnectionHandler connectionHandler = listaSocket.get(i);
-                if(connectionHandler!=null){
-                    if (connectionHandler.equals(this)){
-                        listaSocket.set(i, null);
+            synchronized (server.getLock()){
+                listaSocket = server.getListaSocket();
+                for (int i = 0; i < listaSocket.size(); i++) {
+                    ConnectionHandler connectionHandler = listaSocket.get(i);
+                    if(connectionHandler!=null){
+                        if (connectionHandler.equals(this)){
+                            listaSocket.set(i, null);
+                        }
                     }
                 }
             }
+
             
             mioSocket.close();
             io = null;
@@ -231,7 +252,7 @@ public class ConnectionHandler extends Thread{
         }
     }
 
-    public void send(String msg){
+    public synchronized void send(String msg){
         try {
             invia.writeBytes(msg + "\n");
         } catch (IOException e) {
